@@ -1,0 +1,2 @@
+# Summative-Lab-Python-REST-API-with-Flask--Inventory-Management-System
+You are tasked with creating an administrator portal for an e-commerce website, which will include.  A Flask-based REST API with CRUD operations for managing inventory. An external API integration to fetch product details by barcode or name. A CLI-based interface to interact with the API. Unit tests to validate functionality and interactions.
