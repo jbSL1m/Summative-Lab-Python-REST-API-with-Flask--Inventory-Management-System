@@ -7,6 +7,7 @@ import app as app_module
 from app import ProductLookupError, create_app, fetch_openfoodfacts_product
 
 
+# Fixtures provide reusable test data to any test that requests them by name.
 @pytest.fixture
 def sample_product():
     return {
@@ -21,15 +22,18 @@ def sample_product():
 
 @pytest.fixture
 def client(sample_product):
+    # Replace the real network lookup so tests are fast and predictable.
     flask_app = create_app(
         {
             "TESTING": True,
             "PRODUCT_LOOKUP": lambda barcode=None, name=None: sample_product.copy(),
         }
     )
+    # Flask's test client calls routes without starting a web server.
     return flask_app.test_client()
 
 
+# These tests exercise the create, read, update, and delete inventory routes.
 def test_get_inventory(client):
     response = client.get("/inventory")
     assert response.status_code == 200
@@ -56,6 +60,7 @@ def test_create_inventory_item(client):
     assert len(client.get("/inventory").get_json()) == 3
 
 
+# parametrize runs this same test once for each invalid payload.
 @pytest.mark.parametrize(
     "payload",
     [{}, {"product_name": "Tea", "price": -1}, {"product_name": "Tea", "stock": 2.5}],
@@ -83,6 +88,7 @@ def test_delete_inventory_item(client):
     assert client.get("/inventory/2").status_code == 404
 
 
+# These tests cover searching and importing products from OpenFoodFacts.
 def test_search_external_product(client, sample_product):
     response = client.get("/products/search?barcode=123456789")
     assert response.status_code == 200
@@ -104,6 +110,7 @@ def test_import_external_product(client):
 
 
 def test_external_lookup_failure_returns_502():
+    # This fake function simulates an unavailable external service.
     def failing_lookup(**_kwargs):
         raise ProductLookupError("Service unavailable")
 
@@ -111,7 +118,9 @@ def test_external_lookup_failure_returns_502():
     assert client.get("/products/search?name=granola").status_code == 502
 
 
+# The final tests mock requests.get to test the external API function itself.
 def test_fetch_product_by_barcode(monkeypatch):
+    # Mock creates a response object without making a real internet request.
     response = Mock()
     response.json.return_value = {
         "status": 1,
@@ -129,6 +138,7 @@ def test_fetch_product_by_name(monkeypatch):
     response = Mock()
     response.json.return_value = {"products": [{"code": "456", "product_name": "Oat Bar"}]}
     response.raise_for_status.return_value = None
+    # Keeping the mock in a variable lets the test inspect how it was called.
     request_mock = Mock(return_value=response)
     monkeypatch.setattr(app_module.requests, "get", request_mock)
 
@@ -138,6 +148,7 @@ def test_fetch_product_by_name(monkeypatch):
 
 
 def test_fetch_product_handles_network_error(monkeypatch):
+    # side_effect makes the mock raise the same error as a failed request.
     monkeypatch.setattr(
         app_module.requests,
         "get",
